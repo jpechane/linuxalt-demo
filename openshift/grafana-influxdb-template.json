@@ -1,0 +1,268 @@
+{
+    "kind": "Template",
+    "apiVersion": "v1",
+    "metadata": {
+        "annotations": {
+            "description": "Application template for deployment of Grafan/InfluxDB combination.",
+            "tags": "linuxalt,grafana,influxdb,iot"
+        },
+        "name": "grafana-influxdb"
+    },
+    "labels": {
+        "template": "grafana-influxdb"
+    },
+    "parameters": [
+        {
+            "description": "The name for the application.",
+            "name": "APPLICATION_NAME",
+            "value": "iot",
+            "required": true
+        },
+        {
+            "description": "Custom hostname for InfluxDB routes.  Leave blank for default hostname, e.g.: influxdb.<application-name>.<project>.<default-domain-suffix>",
+            "name": "INFLUXDB_DOMAIN",
+            "value": "",
+            "required": false
+        },
+        {
+            "description": "Custom hostname for Grafana routes.  Leave blank for default hostname, e.g.: grafana.<application-name>.<project>.<default-domain-suffix>",
+            "name": "GRAFANA_DOMAIN",
+            "value": "",
+            "required": false
+        },
+        {
+            "description": "InfluxDB Database name",
+            "name": "INFLUXDB_DATABASE",
+            "value": "mydb",
+            "required": true
+        },
+        {
+            "description": "Grafana Datasource name",
+            "name": "GRAFANA_DATASOURCE",
+            "value": "mydb",
+            "required": true
+        }
+    ],
+    "objects": [
+        {
+            "kind": "Service",
+            "apiVersion": "v1",
+            "spec": {
+                "ports": [
+                    {
+                        "port": 8083,
+                        "targetPort": 8083
+                    }
+                ],
+                "selector": {
+                    "deploymentConfig": "${APPLICATION_NAME}"
+                }
+            },
+            "metadata": {
+                "name": "${APPLICATION_NAME}-influxdb-gui",
+                "labels": {
+                    "application": "${APPLICATION_NAME}"
+                },
+                "annotations": {
+                    "description": "InfluxDB's GUI HTTP port."
+                }
+            }
+        },
+        {
+            "kind": "Service",
+            "apiVersion": "v1",
+            "spec": {
+                "ports": [
+                    {
+                        "port": 8086,
+                        "targetPort": 8086
+                    }
+                ],
+                "selector": {
+                    "deploymentConfig": "${APPLICATION_NAME}"
+                }
+            },
+            "metadata": {
+                "name": "${APPLICATION_NAME}-influxdb-api",
+                "labels": {
+                    "application": "${APPLICATION_NAME}"
+                },
+                "annotations": {
+                    "description": "InfluxDB's REST API port."
+                }
+            }
+        },
+        {
+            "kind": "Service",
+            "apiVersion": "v1",
+            "spec": {
+                "ports": [
+                    {
+                        "port": 3000,
+                        "targetPort": 3000
+                    }
+                ],
+                "selector": {
+                    "deploymentConfig": "${APPLICATION_NAME}"
+                }
+            },
+            "metadata": {
+                "name": "${APPLICATION_NAME}-grafana",
+                "labels": {
+                    "application": "${APPLICATION_NAME}"
+                },
+                "annotations": {
+                    "description": "Grafana's HTTP port."
+                }
+            }
+        },
+        {
+            "kind": "Route",
+            "apiVersion": "v1",
+            "id": "${APPLICATION_NAME}-influxdb-gui",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-influxdb-gui",
+                "labels": {
+                    "application": "${APPLICATION_NAME}"
+                },
+                "annotations": {
+                    "description": "Route for InfluxDB GUI"
+                }
+            },
+            "spec": {
+                "host": "influxdb.${APPLICATION_NAME}.cloudapps.example.com",
+                "to": {
+                    "name": "${APPLICATION_NAME}"
+                }
+            }
+        },
+        {
+            "kind": "Route",
+            "apiVersion": "v1",
+            "id": "${APPLICATION_NAME}-influxdb-api",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-influxdb-api",
+                "labels": {
+                    "application": "${APPLICATION_NAME}"
+                },
+                "annotations": {
+                    "description": "Route for InfluxDB API"
+                }
+            },
+            "spec": {
+                "host": "influxdb.${APPLICATION_NAME}.cloudapps.example.com",
+		"path": "/api",
+                "to": {
+                    "name": "${APPLICATION_NAME}"
+                }
+            }
+        },
+        {
+            "kind": "Route",
+            "apiVersion": "v1",
+            "id": "${APPLICATION_NAME}-grafana",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-grafana",
+                "labels": {
+                    "application": "${APPLICATION_NAME}"
+                },
+                "annotations": {
+                    "description": "Route for Grafana GUI"
+                }
+            },
+            "spec": {
+                "host": "grafana.${APPLICATION_NAME}.cloudapps.example.com",
+                "to": {
+                    "name": "${APPLICATION_NAME}"
+                }
+            }
+        },
+        {
+            "kind": "DeploymentConfig",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-influxdb",
+                "labels": {
+                    "application": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "strategy": {
+                    "type": "Recreate"
+                },
+                "triggers": [
+                    {
+                        "type": "ImageChange",
+                        "imageChangeParams": {
+                            "automatic": true,
+                            "containerNames": [
+                                "${APPLICATION_NAME}-influxdb"
+                            ],
+                            "from": {
+                                "kind": "ImageStream",
+                                "name": "${APPLICATION_NAME}-influxdb"
+                            }
+                        }
+                    },
+                    {
+                        "type": "ConfigChange"
+                    }
+                ],
+                "replicas": 1,
+                "selector": {
+                    "deploymentConfig": "${APPLICATION_NAME}"
+                },
+                "template": {
+                    "metadata": {
+                        "name": "${APPLICATION_NAME}",
+                        "labels": {
+                            "deploymentConfig": "${APPLICATION_NAME}",
+                            "application": "${APPLICATION_NAME}"
+                        }
+                    },
+                    "spec": {
+                        "terminationGracePeriodSeconds": 60,
+                        "containers": [
+                            {
+                                "name": "${APPLICATION_NAME}",
+                                "image": "${APPLICATION_NAME}",
+                                "imagePullPolicy": "Always",
+                                "readinessProbe": {
+                                    "exec": {
+                                        "command": [
+                                            "/bin/bash",
+                                            "-c",
+                                            "curl -s -u ${JWS_ADMIN_USERNAME}:${JWS_ADMIN_PASSWORD} 'http://localhost:8080/manager/jmxproxy/?get=Catalina%3Atype%3DServer&att=stateName' |grep -iq 'stateName *= *STARTED'"
+                                        ]
+                                    }
+                                },
+                                "ports": [
+                                    {
+                                        "name": "http-gui",
+                                        "containerPort": 8083,
+                                        "protocol": "TCP"
+                                    },
+                                    {
+                                        "name": "http-api",
+                                        "containerPort": 8086,
+                                        "protocol": "TCP"
+                                    }
+                                ],
+                                "env": [
+                                    {
+                                        "name": "JWS_ADMIN_USERNAME",
+                                        "value": "${JWS_ADMIN_USERNAME}"
+                                    },
+                                    {
+                                        "name": "JWS_ADMIN_PASSWORD",
+                                        "value": "${JWS_ADMIN_PASSWORD}"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    ]
+}
