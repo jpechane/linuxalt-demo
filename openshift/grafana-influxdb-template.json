@@ -3,7 +3,7 @@
     "apiVersion": "v1",
     "metadata": {
         "annotations": {
-            "description": "Application template for deployment of Grafan/InfluxDB combination.",
+            "description": "Application template for deployment of Grafana/InfluxDB combination.",
             "tags": "linuxalt,grafana,influxdb,iot"
         },
         "name": "grafana-influxdb"
@@ -19,27 +19,21 @@
             "required": true
         },
         {
-            "description": "Custom hostname for InfluxDB routes.  Leave blank for default hostname, e.g.: influxdb.<application-name>.<project>.<default-domain-suffix>",
-            "name": "INFLUXDB_DOMAIN",
-            "value": "",
-            "required": false
-        },
-        {
-            "description": "Custom hostname for Grafana routes.  Leave blank for default hostname, e.g.: grafana.<application-name>.<project>.<default-domain-suffix>",
-            "name": "GRAFANA_DOMAIN",
-            "value": "",
-            "required": false
+            "description": "Custom domain name for application routes.",
+            "name": "DOMAIN_SUFFIX",
+            "value": "cloudapps.example.com",
+            "required": true
         },
         {
             "description": "InfluxDB Database name",
             "name": "INFLUXDB_DATABASE",
-            "value": "mydb",
+            "value": "linuxalt-demo",
             "required": true
         },
         {
             "description": "Grafana Datasource name",
             "name": "GRAFANA_DATASOURCE",
-            "value": "mydb",
+            "value": "InfluxDB",
             "required": true
         }
     ],
@@ -55,7 +49,7 @@
                     }
                 ],
                 "selector": {
-                    "deploymentConfig": "${APPLICATION_NAME}"
+                    "deploymentConfig": "${APPLICATION_NAME}-influxdb"
                 }
             },
             "metadata": {
@@ -79,7 +73,7 @@
                     }
                 ],
                 "selector": {
-                    "deploymentConfig": "${APPLICATION_NAME}"
+                    "deploymentConfig": "${APPLICATION_NAME}-influxdb"
                 }
             },
             "metadata": {
@@ -103,7 +97,7 @@
                     }
                 ],
                 "selector": {
-                    "deploymentConfig": "${APPLICATION_NAME}"
+                    "deploymentConfig": "${APPLICATION_NAME}-grafana"
                 }
             },
             "metadata": {
@@ -130,9 +124,9 @@
                 }
             },
             "spec": {
-                "host": "influxdb.${APPLICATION_NAME}.cloudapps.example.com",
+                "host": "influxdb.${APPLICATION_NAME}.${DOMAIN_SUFFIX}",
                 "to": {
-                    "name": "${APPLICATION_NAME}"
+                    "name": "${APPLICATION_NAME}-influxdb-gui"
                 }
             }
         },
@@ -150,10 +144,9 @@
                 }
             },
             "spec": {
-                "host": "influxdb.${APPLICATION_NAME}.cloudapps.example.com",
-		"path": "/api",
+                "host": "api.influxdb.${APPLICATION_NAME}.${DOMAIN_SUFFIX}",
                 "to": {
-                    "name": "${APPLICATION_NAME}"
+                    "name": "${APPLICATION_NAME}-influxdb-api"
                 }
             }
         },
@@ -171,9 +164,9 @@
                 }
             },
             "spec": {
-                "host": "grafana.${APPLICATION_NAME}.cloudapps.example.com",
+                "host": "grafana.${APPLICATION_NAME}.${DOMAIN_SUFFIX}",
                 "to": {
-                    "name": "${APPLICATION_NAME}"
+                    "name": "${APPLICATION_NAME}-grafana"
                 }
             }
         },
@@ -200,7 +193,7 @@
                             ],
                             "from": {
                                 "kind": "ImageStream",
-                                "name": "${APPLICATION_NAME}-influxdb"
+                                "name": "influxdb"
                             }
                         }
                     },
@@ -210,13 +203,13 @@
                 ],
                 "replicas": 1,
                 "selector": {
-                    "deploymentConfig": "${APPLICATION_NAME}"
+                    "deploymentConfig": "${APPLICATION_NAME}-influxdb"
                 },
                 "template": {
                     "metadata": {
                         "name": "${APPLICATION_NAME}",
                         "labels": {
-                            "deploymentConfig": "${APPLICATION_NAME}",
+                            "deploymentConfig": "${APPLICATION_NAME}-influxdb",
                             "application": "${APPLICATION_NAME}"
                         }
                     },
@@ -224,18 +217,9 @@
                         "terminationGracePeriodSeconds": 60,
                         "containers": [
                             {
-                                "name": "${APPLICATION_NAME}",
-                                "image": "${APPLICATION_NAME}",
+                                "name": "${APPLICATION_NAME}-influxdb",
+                                "image": "${APPLICATION_NAME}-influxdb",
                                 "imagePullPolicy": "Always",
-                                "readinessProbe": {
-                                    "exec": {
-                                        "command": [
-                                            "/bin/bash",
-                                            "-c",
-                                            "curl -s -u ${JWS_ADMIN_USERNAME}:${JWS_ADMIN_PASSWORD} 'http://localhost:8080/manager/jmxproxy/?get=Catalina%3Atype%3DServer&att=stateName' |grep -iq 'stateName *= *STARTED'"
-                                        ]
-                                    }
-                                },
                                 "ports": [
                                     {
                                         "name": "http-gui",
@@ -250,12 +234,89 @@
                                 ],
                                 "env": [
                                     {
-                                        "name": "JWS_ADMIN_USERNAME",
-                                        "value": "${JWS_ADMIN_USERNAME}"
+                                        "name": "INFLUXDB_DATABASE_NAME",
+                                        "value": "${INFLUXDB_DATABASE}"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "kind": "DeploymentConfig",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-grafana",
+                "labels": {
+                    "application": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "strategy": {
+                    "type": "Recreate"
+                },
+                "triggers": [
+                    {
+                        "type": "ImageChange",
+                        "imageChangeParams": {
+                            "automatic": true,
+                            "containerNames": [
+                                "${APPLICATION_NAME}-grafana"
+                            ],
+                            "from": {
+                                "kind": "ImageStream",
+                                "name": "grafana"
+                            }
+                        }
+                    },
+                    {
+                        "type": "ConfigChange"
+                    }
+                ],
+                "replicas": 1,
+                "selector": {
+                    "deploymentConfig": "${APPLICATION_NAME}-grafana"
+                },
+                "template": {
+                    "metadata": {
+                        "name": "${APPLICATION_NAME}",
+                        "labels": {
+                            "deploymentConfig": "${APPLICATION_NAME}-grafana",
+                            "application": "${APPLICATION_NAME}"
+                        }
+                    },
+                    "spec": {
+                        "terminationGracePeriodSeconds": 60,
+                        "containers": [
+                            {
+                                "name": "${APPLICATION_NAME}-grafana",
+                                "image": "${APPLICATION_NAME}-grafana",
+                                "imagePullPolicy": "Always",
+                                "ports": [
+                                    {
+                                        "name": "http",
+                                        "containerPort": 3000,
+                                        "protocol": "TCP"
+                                    }
+                                ],
+                                "env": [
+                                    {
+                                        "name": "GRAFANA_DATASOURCE_NAME",
+                                        "value": "${GRAFANA_DATASOURCE}"
                                     },
                                     {
-                                        "name": "JWS_ADMIN_PASSWORD",
-                                        "value": "${JWS_ADMIN_PASSWORD}"
+                                        "name": "INFLUXDB_HOST",
+                                        "value": "api.influxdb.${APPLICATION_NAME}.${DOMAIN_SUFFIX}"
+                                    },
+                                    {
+                                        "name": "INFLUXDB_PORT",
+                                        "value": "80"
+                                    },
+                                    {
+                                        "name": "INFLUXDB_DATABASE",
+                                        "value": "${INFLUXDB_DATABASE}"
                                     }
                                 ]
                             }

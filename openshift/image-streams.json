@@ -1,0 +1,48 @@
+{
+    "kind": "List",
+    "apiVersion": "v1",
+    "metadata": {
+        "name": "image-streams",
+        "annotations": {
+            "description": "ImageStream definitions for LinuxAlt IoT Demo"
+        }
+    },
+    "items": [
+        {
+            "kind": "ImageStream",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "influxdb"
+            },
+            "spec": {
+                "dockerImageRepository": "jpechane/linuxalt-influxdb",
+                "tags": [
+                    {
+                        "name": "latest",
+                        "annotations": {
+                            "version": "latest"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "kind": "ImageStream",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "grafana"
+            },
+            "spec": {
+                "dockerImageRepository": "jpechane/linuxalt-grafana",
+                "tags": [
+                    {
+                        "name": "latest",
+                        "annotations": {
+                            "version": "latest"
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
