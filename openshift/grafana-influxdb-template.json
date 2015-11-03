@@ -4,7 +4,7 @@
     "metadata": {
         "annotations": {
             "description": "Application template for deployment of Grafana/InfluxDB combination.",
-            "tags": "linuxalt,grafana,influxdb,iot"
+            "tags": "linuxalt,grafana,influxdb,iot,instant-app"
         },
         "name": "grafana-influxdb"
     },
@@ -193,7 +193,8 @@
                             ],
                             "from": {
                                 "kind": "ImageStream",
-                                "name": "influxdb"
+                                "name": "influxdb",
+				"namespace": "openshift"
                             }
                         }
                     },
@@ -219,7 +220,7 @@
                             {
                                 "name": "${APPLICATION_NAME}-influxdb",
                                 "image": "${APPLICATION_NAME}-influxdb",
-                                "imagePullPolicy": "Always",
+                                "imagePullPolicy": "IfNotPresent",
                                 "ports": [
                                     {
                                         "name": "http-gui",
@@ -267,7 +268,8 @@
                             ],
                             "from": {
                                 "kind": "ImageStream",
-                                "name": "grafana"
+                                "name": "grafana",
+				"namespace": "openshift"
                             }
                         }
                     },
@@ -293,7 +295,7 @@
                             {
                                 "name": "${APPLICATION_NAME}-grafana",
                                 "image": "${APPLICATION_NAME}-grafana",
-                                "imagePullPolicy": "Always",
+                                "imagePullPolicy": "IfNotPresent",
                                 "ports": [
                                     {
                                         "name": "http",
